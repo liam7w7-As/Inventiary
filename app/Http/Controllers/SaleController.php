@@ -146,7 +146,7 @@ class SaleController extends Controller
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'cash_register_id' => 'required|exists:cash_registers,id',
-            'client_id' => 'nullable|exists:clients,id',
+            'client_id' => 'required_if:payment_type,credit|nullable|exists:clients,id',
             'pre_sale_id' => 'nullable|exists:pre_sales,id',
             'sale_type' => 'required|in:direct,presale',
             'payment_type' => 'required|in:cash,credit,transfer,other',

@@ -45,7 +45,7 @@
                         <select v-model="form.product_id" class="form-input" required>
                             <option value="" disabled>Buscar o seleccionar producto...</option>
                             <option v-for="p in products" :key="p.id" :value="p.id">
-                                {{ p.code ? `[${p.code}] ` : '' }}{{ p.name }}
+                                {{ p.name }}
                             </option>
                         </select>
                         <div v-if="form.errors.product_id" class="form-error">{{ form.errors.product_id }}</div>

@@ -101,7 +101,10 @@
                             <div class="cart-details">
                                 <!-- Cliente -->
                                 <div class="field-group">
-                                    <label class="field-label">Cliente (opcional)</label>
+                                    <label class="field-label">
+                                        Cliente <span v-if="form.payment_type === 'credit'" class="text-red-500 text-xs ml-1">* Obligatorio para crédito</span>
+                                        <span v-else class="font-normal ml-1">(opcional)</span>
+                                    </label>
                                     <div class="client-field__row">
                                         <div style="flex:1; position: relative;">
                                             <input v-model="clientSearch" type="text" class="search-input w-full" placeholder="Buscar cliente..." @input="searchClients" />
@@ -138,7 +141,7 @@
                                         </label>
                                     </div>
                                     <div v-if="form.payment_type === 'credit'" class="credit-warning">
-                                        Se generará una deuda a 30 días.
+                                        Se generará una deuda a 30 días. Debe seleccionar un cliente.
                                     </div>
                                 </div>
 
@@ -155,8 +158,9 @@
 
                                 <div v-if="form.errors.items" class="error-msg">{{ form.errors.items }}</div>
                                 <div v-if="form.errors.cash_register_id" class="error-msg">{{ form.errors.cash_register_id }}</div>
+                                <div v-if="form.errors.client_id" class="error-msg">{{ form.errors.client_id }}</div>
 
-                                <button type="submit" class="btn-checkout" :disabled="!form.items.length || form.processing">
+                                <button type="submit" class="btn-checkout" :disabled="!form.items.length || form.processing || (form.payment_type === 'credit' && !form.client_id)">
                                     {{ form.processing ? 'Procesando...' : 'REGISTRAR VENTA' }}
                                 </button>
                             </div>

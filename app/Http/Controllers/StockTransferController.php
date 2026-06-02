@@ -54,7 +54,7 @@ class StockTransferController extends Controller
         return Inertia::render('Transfers/Index', [
             'transfers' => $transfers,
             'branches' => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'products' => Product::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+            'products' => Product::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'filters' => $filters,
             'pendingCount' => StockTransfer::where('status', 'pending')->count(),
         ]);
