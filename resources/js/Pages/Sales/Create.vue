@@ -8,6 +8,20 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
                 <span>Venta generada desde Preventa <strong>#{{ preSale.id }}</strong> (Aprobada)</span>
             </div>
+            
+            <div v-else-if="approvedPreSales && approvedPreSales.length > 0" class="approved-presales-alert">
+                <div class="alert-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="alert-content">
+                    <h4>Tienes {{ approvedPreSales.length }} preventa(s) pendiente(s) de procesar.</h4>
+                    <div class="presale-pills">
+                        <a v-for="ps in approvedPreSales" :key="ps.id" :href="`/sales/create?presale_id=${ps.id}`" class="presale-pill">
+                            <strong>#{{ ps.id }}</strong> - {{ ps.client?.name || 'Cliente general' }} ({{ ps.payment_type === 'credit' ? 'Crédito' : 'Efectivo' }})
+                        </a>
+                    </div>
+                </div>
+            </div>
 
             <div class="pos-layout">
                 <!-- PANEL IZQUIERDO: PRODUCTOS -->
@@ -224,7 +238,7 @@ import AppInput from '@/Components/AppInput.vue'
 import AppModal from '@/Components/AppModal.vue'
 import AppButton from '@/Components/AppButton.vue'
 
-const props = defineProps({ products: Array, clients: Array, cashRegister: Object, preSale: Object, branch: Object })
+const props = defineProps({ products: Array, clients: Array, cashRegister: Object, preSale: Object, branch: Object, approvedPreSales: Array })
 const page = usePage()
 
 const form = useForm({
@@ -348,8 +362,16 @@ const calcChange = computed(() => calcReceived.value - grandTotal.value)
 </script>
 
 <style scoped>
-.pos-page { max-width: 100%; padding-bottom: 2rem; }
-.presale-banner { display: flex; align-items: center; gap: 0.75rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem 1rem; border-radius: 8px; margin-bottom: 1rem; color: #166534; font-size: 0.85rem; }
+.pos-page { max-width: 1300px; padding-bottom: 2rem; display: flex; flex-direction: column; height: calc(100vh - 100px); }
+.presale-banner { background: #eff6ff; color: #1e40af; padding: 0.85rem 1.25rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #bfdbfe; font-size: 0.95rem; display: flex; align-items: center; gap: 0.75rem; }
+.presale-banner svg { flex-shrink: 0; }
+
+.approved-presales-alert { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: flex-start; }
+.approved-presales-alert .alert-icon { color: #d97706; margin-top: 0.1rem; }
+.approved-presales-alert h4 { font-size: 0.95rem; font-weight: 700; color: #92400e; margin: 0 0 0.5rem 0; }
+.presale-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.presale-pill { background: #fff; border: 1px solid #fcd34d; color: #b45309; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+.presale-pill:hover { background: #fef3c7; border-color: #f59e0b; }
 
 .pos-layout { display: grid; grid-template-columns: 1fr minmax(420px, 480px); gap: 1.5rem; align-items: start; }
 

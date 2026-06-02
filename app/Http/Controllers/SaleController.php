@@ -121,11 +121,17 @@ class SaleController extends Controller
 
         $preSale = null;
         if ($request->presale_id) {
-            $preSale = PreSale::with('items.product')->find($request->presale_id);
+            $preSale = PreSale::with(['items.product', 'client'])->find($request->presale_id);
             if ($preSale && $preSale->status !== 'approved') {
                 return redirect('/sales/create')->with('error', 'La preventa seleccionada no está aprobada.');
             }
         }
+
+        $approvedPreSales = PreSale::with('client')
+            ->where('branch_id', $branchId)
+            ->where('status', 'approved')
+            ->orderBy('updated_at', 'desc')
+            ->get(['id', 'client_id', 'total', 'payment_type']);
 
         return Inertia::render('Sales/Create', [
             'products' => $products,
@@ -134,6 +140,7 @@ class SaleController extends Controller
             'preSale' => $preSale,
             'branch' => Branch::find($branchId),
             'branches' => $isAdmin ? Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']) : [],
+            'approvedPreSales' => $approvedPreSales,
             'selectedBranchId' => $branchId,
         ]);
     }

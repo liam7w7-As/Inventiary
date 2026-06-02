@@ -283,7 +283,18 @@ function openPaymentModal() {
     paymentForm.reset()
     paymentForm.clearErrors()
     paymentForm.amount = ''
+    paymentForm.notes = ''
     paymentForm.payment_date = new Date().toISOString().split('T')[0]
+    
+    if (installments.value && installments.value.length > 0) {
+        const nextInst = installments.value.find(i => i.status === 'pending' || i.status === 'partial' || i.status === 'overdue')
+        if (nextInst) {
+            const amountToPay = nextInst.amount - nextInst.paid_amount
+            paymentForm.amount = parseFloat(amountToPay).toFixed(2)
+            paymentForm.notes = `Pagado la cuota ${nextInst.installment_number}`
+        }
+    }
+    
     paymentModal.show = true
 }
 

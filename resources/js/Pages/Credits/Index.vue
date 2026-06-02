@@ -270,13 +270,25 @@ const paymentForm = useForm({
     notes: ''
 })
 
-function openPaymentModal(credit) {
+async function openPaymentModal(credit) {
     paymentModal.credit = credit
     paymentForm.reset()
     paymentForm.clearErrors()
     paymentForm.amount = ''
+    paymentForm.notes = ''
     paymentForm.payment_date = new Date().toISOString().split('T')[0]
     paymentModal.show = true
+
+    try {
+        const resp = await fetch(`/credits/${credit.id}/installments`)
+        const installments = await resp.json()
+        const nextInst = installments.find(i => i.status === 'pending' || i.status === 'partial' || i.status === 'overdue')
+        if (nextInst && paymentForm.amount === '') {
+            const amountToPay = nextInst.amount - nextInst.paid_amount
+            paymentForm.amount = parseFloat(amountToPay).toFixed(2)
+            paymentForm.notes = `Pagado la cuota ${nextInst.installment_number}`
+        }
+    } catch(e) {}
 }
 
 function setFullPayment() {
