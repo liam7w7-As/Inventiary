@@ -59,7 +59,7 @@ class StockTransferController extends Controller
             'pendingCount' => StockTransfer::where('status', 'pending')->count(),
         ]);
     }
-
+//:3
     public function create()
     {
         $user = Auth::user();
