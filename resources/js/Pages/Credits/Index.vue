@@ -73,46 +73,47 @@
             </div>
 
             <!-- Table -->
-            <AppTable :headers="tableHeaders">
-                <tr v-for="credit in credits.data" :key="credit.id">
-                    <td>
-                        <div class="font-semibold">{{ credit.client?.name || 'Cliente Eliminado' }}</div>
-                    </td>
-                    <td v-if="isAdmin">{{ credit.branch?.name }}</td>
-                    <td>
-                        <a :href="`/sales/${credit.sale_id}`" @click.prevent="$inertia.visit(`/sales/${credit.sale_id}`)" class="text-blue-600 hover:underline">
-                            {{ credit.sale?.code || '#' + credit.sale_id }}
-                        </a>
-                    </td>
-                    <td class="text-right">Bs. {{ parseFloat(credit.total_amount).toFixed(2) }}</td>
-                    <td class="text-right text-emerald-600">Bs. {{ parseFloat(credit.paid_amount).toFixed(2) }}</td>
-                    <td class="text-right font-bold" :class="{'text-red-600': credit.balance > 0}">Bs. {{ parseFloat(credit.balance).toFixed(2) }}</td>
-                    <td>
-                        <div :class="dueDateClass(credit.due_date, credit.status)">
-                            {{ new Date(credit.due_date).toLocaleDateString() }}
-                        </div>
-                    </td>
-                    <td>
-                        <AppBadge :variant="statusVariant(credit.status)">
-                            {{ statusLabel(credit.status) }}
-                        </AppBadge>
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-action btn-view" @click="$inertia.visit(`/credits/${credit.id}`)" title="Ver Detalle">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                            </button>
-                            <button v-if="credit.status !== 'paid'" class="btn-action btn-pay" @click="openPaymentModal(credit)" title="Registrar Pago">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                <tr v-if="credits.data.length === 0">
-                    <td :colspan="isAdmin ? 9 : 8" class="text-center py-8 text-slate-500">
-                        No se encontraron créditos.
-                    </td>
-                </tr>
+            <AppTable :columns="columns" :rows="credits.data">
+                <template #cell(client)="{ row }">
+                    <div class="font-semibold">{{ row.client?.name || 'Cliente Eliminado' }}</div>
+                </template>
+                <template #cell(branch)="{ row }">
+                    <span v-if="isAdmin">{{ row.branch?.name }}</span>
+                </template>
+                <template #cell(sale)="{ row }">
+                    <a :href="`/sales/${row.sale_id}`" @click.prevent="$inertia.visit(`/sales/${row.sale_id}`)" class="text-blue-600 hover:underline">
+                        {{ row.sale?.code || '#' + row.sale_id }}
+                    </a>
+                </template>
+                <template #cell(total)="{ row }">
+                    <span class="text-right block">Bs. {{ parseFloat(row.total_amount).toFixed(2) }}</span>
+                </template>
+                <template #cell(paid)="{ row }">
+                    <span class="text-right text-emerald-600 block">Bs. {{ parseFloat(row.paid_amount).toFixed(2) }}</span>
+                </template>
+                <template #cell(balance)="{ row }">
+                    <span class="text-right font-bold block" :class="{'text-red-600': row.balance > 0}">Bs. {{ parseFloat(row.balance).toFixed(2) }}</span>
+                </template>
+                <template #cell(due_date)="{ row }">
+                    <div :class="dueDateClass(row.due_date, row.status)">
+                        {{ new Date(row.due_date).toLocaleDateString() }}
+                    </div>
+                </template>
+                <template #cell(status)="{ row }">
+                    <AppBadge :variant="statusVariant(row.status)">
+                        {{ statusLabel(row.status) }}
+                    </AppBadge>
+                </template>
+                <template #cell(actions)="{ row }">
+                    <div class="action-buttons">
+                        <button class="btn-action btn-view" @click="$inertia.visit(`/credits/${row.id}`)" title="Ver Detalle">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button v-if="row.status !== 'paid'" class="btn-action btn-pay" @click="openPaymentModal(row)" title="Registrar Pago">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                        </button>
+                    </div>
+                </template>
             </AppTable>
 
             <!-- Pagination -->
@@ -183,11 +184,19 @@ const props = defineProps({
 const page = usePage()
 const isAdmin = computed(() => page.props.auth.user.role === 'admin')
 
-const tableHeaders = computed(() => {
-    const h = ['Cliente']
-    if (isAdmin.value) h.push('Sucursal')
-    h.push('Venta', 'Total Créd.', 'Pagado', 'Saldo Pend.', 'Vencimiento', 'Estado', 'Acciones')
-    return h
+const columns = computed(() => {
+    const cols = [{ key: 'client', label: 'Cliente' }]
+    if (isAdmin.value) cols.push({ key: 'branch', label: 'Sucursal' })
+    cols.push(
+        { key: 'sale', label: 'Venta' },
+        { key: 'total', label: 'Total Créd.' },
+        { key: 'paid', label: 'Pagado' },
+        { key: 'balance', label: 'Saldo Pend.' },
+        { key: 'due_date', label: 'Vencimiento' },
+        { key: 'status', label: 'Estado' },
+        { key: 'actions', label: 'Acciones' }
+    )
+    return cols
 })
 
 const filtersForm = reactive({
