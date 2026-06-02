@@ -105,6 +105,37 @@
                     </div>
                 </div>
 
+                <div class="installments-section" style="margin-bottom: 1.5rem;">
+                    <h3 class="section-title">Plan de Cuotas</h3>
+                    <div v-if="installments.length === 0" class="empty-payments">
+                        Cargando cuotas...
+                    </div>
+                    <div v-else class="installments-grid">
+                        <div v-for="inst in installments" :key="inst.id" class="installment-card" :class="'inst--' + inst.status">
+                            <div class="inst-header">
+                                <span class="inst-num">Cuota {{ inst.installment_number }}</span>
+                                <span class="inst-status">
+                                    {{ inst.status === 'paid' ? 'Pagada' : (inst.status === 'overdue' ? 'Vencida' : (inst.status === 'partial' ? 'Parcial' : 'Pendiente')) }}
+                                </span>
+                            </div>
+                            <div class="inst-body">
+                                <div class="inst-row">
+                                    <span>Monto:</span>
+                                    <strong>Bs. {{ parseFloat(inst.amount).toFixed(2) }}</strong>
+                                </div>
+                                <div class="inst-row">
+                                    <span>Pagado:</span>
+                                    <strong class="text-emerald-600">Bs. {{ parseFloat(inst.paid_amount).toFixed(2) }}</strong>
+                                </div>
+                                <div class="inst-row">
+                                    <span>Vence:</span>
+                                    <strong :class="dueDateClass(inst.due_date, inst.status)">{{ new Date(inst.due_date).toLocaleDateString() }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Payments History -->
                 <div class="payments-section">
                     <h3 class="section-title">Historial de Pagos</h3>
@@ -184,7 +215,7 @@
 </template>
 
 <script setup>
-import { reactive, computed } from 'vue'
+import { reactive, computed, ref, onMounted } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppBadge from '@/Components/AppBadge.vue'
@@ -194,6 +225,14 @@ const props = defineProps({
     credit: Object,
     payments: Array,
     sale: Object
+})
+
+const installments = ref([])
+onMounted(async () => {
+    try {
+        const resp = await fetch(`/credits/${props.credit.id}/installments`)
+        installments.value = await resp.json()
+    } catch(e) {}
 })
 
 const page = usePage()
@@ -340,6 +379,20 @@ function submitDate() {
 .payment-body { display: flex; flex-direction: column; gap: 0.25rem; }
 .payment-user { font-size: 0.75rem; color: #475569; }
 .payment-notes { font-size: 0.8rem; color: #334155; margin: 0; padding-top: 0.25rem; border-top: 1px dashed #cbd5e1; }
+
+/* Installments */
+.installments-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
+.installments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+.installment-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; background: #fff; border-left: 4px solid #cbd5e1; }
+.inst--pending { border-left-color: #f59e0b; }
+.inst--partial { border-left-color: #3b82f6; }
+.inst--paid { border-left-color: #10b981; background: #f0fdf4; }
+.inst--overdue { border-left-color: #ef4444; background: #fef2f2; }
+.inst-header { display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.4rem; margin-bottom: 0.4rem; }
+.inst-num { font-size: 0.8rem; font-weight: 700; color: #334155; }
+.inst-status { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #64748b; }
+.inst-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #475569; padding: 0.2rem 0; }
+.inst-row strong { color: #1e293b; }
 
 /* Modals */
 .payment-input, .payment-textarea { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; outline: none; }

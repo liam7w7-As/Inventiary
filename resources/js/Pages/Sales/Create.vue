@@ -126,22 +126,30 @@
                                 <!-- Pago -->
                                 <div class="field-group">
                                     <label class="field-label">Tipo de Pago</label>
-                                    <div class="payment-options">
+                                    
+                                    <div v-if="preSale && preSale.payment_type === 'credit'" class="payment-options">
+                                        <label class="pay-option pay-option--locked">
+                                            <input type="radio" v-model="form.payment_type" value="credit" name="pay_type" disabled />
+                                            <div class="pay-option__content">📝 Crédito</div>
+                                        </label>
+                                    </div>
+                                    <div v-else class="payment-options">
                                         <label class="pay-option">
                                             <input type="radio" v-model="form.payment_type" value="cash" name="pay_type" />
                                             <div class="pay-option__content">💵 Efectivo</div>
                                         </label>
                                         <label class="pay-option">
-                                            <input type="radio" v-model="form.payment_type" value="credit" name="pay_type" />
-                                            <div class="pay-option__content">📝 Crédito</div>
-                                        </label>
-                                        <label class="pay-option">
                                             <input type="radio" v-model="form.payment_type" value="transfer" name="pay_type" />
                                             <div class="pay-option__content">📱 Transf.</div>
                                         </label>
+                                        <label class="pay-option">
+                                            <input type="radio" v-model="form.payment_type" value="other" name="pay_type" />
+                                            <div class="pay-option__content">🏷️ Otro</div>
+                                        </label>
                                     </div>
+
                                     <div v-if="form.payment_type === 'credit'" class="credit-warning">
-                                        Se generará una deuda a 30 días. Debe seleccionar un cliente.
+                                        Esta venta proviene de una preventa a crédito. Se generarán las cuotas correspondientes al registrarse.
                                     </div>
                                 </div>
 
@@ -234,6 +242,9 @@ const form = useForm({
 onMounted(() => {
     if (props.preSale) {
         selectedClient.value = props.preSale.client || null;
+        if (props.preSale.payment_type === 'credit') {
+            form.payment_type = 'credit';
+        }
         form.items = props.preSale.items.map(i => ({
             product_id: i.product_id,
             name: i.product?.name,

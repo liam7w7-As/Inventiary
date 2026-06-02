@@ -59,7 +59,10 @@ class HandleInertiaRequests extends Middleware
                 ? \App\Models\StockTransfer::where('status', 'pending')->count()
                 : 0,
             'overdueCredits' => fn() => auth()->check()
-                ? \App\Models\Credit::where('status', 'overdue')->when(auth()->user()->role->name === 'encargado', fn($q) => $q->where('branch_id', auth()->user()->branch_id))->count()
+                ? \App\Models\CreditInstallment::where('status', 'overdue')
+                    ->whereHas('credit', function($q) {
+                        $q->when(auth()->user()->role->name === 'encargado', fn($sq) => $sq->where('branch_id', auth()->user()->branch_id));
+                    })->count()
                 : 0,
         ];
     }

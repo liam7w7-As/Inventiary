@@ -13,9 +13,14 @@
             <!-- Status Card -->
             <div class="status-card" :class="`status-card--${preSale.status}`">
                 <div class="status-header">
-                    <AppBadge :variant="statusVariant(preSale.status)" style="font-size:0.9rem;">
-                        {{ statusLabel(preSale.status) }}
-                    </AppBadge>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <AppBadge :variant="statusVariant(preSale.status)" style="font-size:0.9rem;">
+                            {{ statusLabel(preSale.status) }}
+                        </AppBadge>
+                        <AppBadge :variant="preSale.payment_type === 'credit' ? 'warning' : 'success'" style="font-size:0.9rem;">
+                            {{ preSale.payment_type === 'credit' ? 'A Crédito' : 'Efectivo' }}
+                        </AppBadge>
+                    </div>
                     <span class="status-id">#{{ preSale.id }}</span>
                 </div>
                 <div v-if="preSale.approved_by" class="status-meta">
@@ -41,6 +46,23 @@
                 <div class="info-item">
                     <span class="info-label">Fecha</span>
                     <span class="info-value">{{ new Date(preSale.created_at).toLocaleString() }}</span>
+                </div>
+            </div>
+
+            <div v-if="preSale.payment_type === 'credit' && preSale.status !== 'approved'" class="notes-box" style="border-left: 4px solid #f59e0b;">
+                <strong>Condiciones solicitadas:</strong> 
+                <br />
+                {{ preSale.credit_installments }} cuotas | Plazo: {{ preSale.credit_period_days }} días
+            </div>
+
+            <div v-if="preSale.payment_type === 'credit' && preSale.status === 'approved'" class="notes-box" style="border-left: 4px solid #10b981; background: #f0fdf4;">
+                <strong>Condiciones aprobadas:</strong> 
+                <br />
+                {{ preSale.approved_installments }} cuotas de aprox. Bs. {{ (totalAmount / preSale.approved_installments).toFixed(2) }}
+                cada {{ Math.round(preSale.approved_period_days / preSale.approved_installments) }} días. 
+                Plazo total: {{ preSale.approved_period_days }} días.
+                <div v-if="preSale.credit_notes" style="margin-top: 0.5rem;">
+                    <em>Notas: {{ preSale.credit_notes }}</em>
                 </div>
             </div>
 
@@ -80,18 +102,39 @@
             </div>
 
             <!-- Actions -->
-            <div v-if="isAdmin && preSale.status === 'pending'" class="action-bar">
-                <AppButton variant="success" @click="approve">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Aprobar Preventa
-                </AppButton>
-                <AppButton variant="danger" @click="rejectModal.show = true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                    Rechazar
-                </AppButton>
+            <div v-if="isAdmin && preSale.status === 'pending'" class="action-card">
+                <template v-if="preSale.payment_type === 'credit'">
+                    <h3 class="section-title">Aprobar con condiciones</h3>
+                    <form @submit.prevent="submitApproveWithConditions" class="approve-form">
+                        <div class="approve-grid">
+                            <AppInput type="number" label="Cuotas aprobadas" v-model.number="approveForm.approved_installments" :error="approveForm.errors.approved_installments" min="1" max="36" required />
+                            <AppInput type="number" label="Plazo aprobado (días)" v-model.number="approveForm.approved_period_days" :error="approveForm.errors.approved_period_days" min="7" required />
+                        </div>
+                        <AppTextarea label="Notas del crédito (opcional)" v-model="approveForm.credit_notes" :error="approveForm.errors.credit_notes" :rows="2" />
+                        <div class="action-bar">
+                            <AppButton type="submit" variant="success" :loading="approveForm.processing">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Aprobar Crédito
+                            </AppButton>
+                            <AppButton type="button" variant="danger" @click="rejectModal.show = true">Rechazar</AppButton>
+                        </div>
+                    </form>
+                </template>
+                <template v-else>
+                    <div class="action-bar">
+                        <AppButton variant="success" @click="approve">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Aprobar Preventa
+                        </AppButton>
+                        <AppButton variant="danger" @click="rejectModal.show = true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            Rechazar
+                        </AppButton>
+                    </div>
+                </template>
             </div>
 
-            <div v-if="preSale.status === 'approved'" class="action-bar">
+            <div v-if="preSale.status === 'approved'" class="action-bar" style="margin-top: 1.5rem;">
                 <a :href="`/sales/create?presale_id=${preSale.id}`" @click.prevent="$inertia.visit(`/sales/create?presale_id=${preSale.id}`)" class="btn-convert">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
                     Convertir a Venta
@@ -140,6 +183,18 @@ function approve() {
     router.patch(`/pre-sales/${props.preSale.id}/approve`)
 }
 
+const approveForm = useForm({
+    approved_installments: props.preSale.credit_installments || 1,
+    approved_period_days: props.preSale.credit_period_days || 30,
+    credit_notes: '',
+})
+
+function submitApproveWithConditions() {
+    approveForm.patch(`/pre-sales/${props.preSale.id}/approve`, {
+        preserveScroll: true
+    })
+}
+
 const rejectModal = reactive({ show: false })
 const rejectForm = useForm({ notes: '' })
 function submitReject() {
@@ -183,7 +238,10 @@ function submitReject() {
 .total-value { font-weight: 800; font-size: 1.1rem; color: #059669; }
 .font-semibold { font-weight: 600; }
 
-.action-bar { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+.action-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; }
+.approve-form { display: flex; flex-direction: column; gap: 1rem; }
+.approve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.action-bar { display: flex; gap: 0.75rem; }
 .btn-convert { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem; background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: all 0.15s; }
 .btn-convert:hover { box-shadow: 0 4px 14px rgba(5,150,105,0.3); transform: translateY(-1px); }
 </style>

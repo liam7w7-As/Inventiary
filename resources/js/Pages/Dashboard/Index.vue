@@ -24,14 +24,11 @@
             <!-- Stats cards -->
             <div class="dashboard__grid">
                 <div v-for="card in cards" :key="card.title" class="stat-card">
-                    <div class="stat-card__header">
                         <div :class="['stat-card__icon', `stat-card__icon--${card.color}`]">
                             <span v-html="card.icon"></span>
                         </div>
-                        <span class="stat-card__badge">Próximamente</span>
-                    </div>
                     <div class="stat-card__body">
-                        <span class="stat-card__value">--</span>
+                        <span class="stat-card__value">{{ card.value }}</span>
                         <span class="stat-card__title">{{ card.title }}</span>
                     </div>
                 </div>
@@ -44,6 +41,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { useAuth } from '@/Composables/useAuth.js'
+
+const props = defineProps({ stats: Object })
 
 const { user } = useAuth()
 
@@ -71,28 +70,32 @@ onUnmounted(() => {
     if (timer) clearInterval(timer)
 })
 
-const cards = [
+const cards = computed(() => [
     {
         title: 'Ventas hoy',
+        value: `Bs. ${parseFloat(props.stats?.sales_today || 0).toFixed(2)}`,
         color: 'blue',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>',
     },
     {
         title: 'Productos',
+        value: props.stats?.products_count || 0,
         color: 'emerald',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
     },
     {
         title: 'Clientes',
+        value: props.stats?.clients_count || 0,
         color: 'violet',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     },
     {
         title: 'Preventas pendientes',
+        value: props.stats?.presales_pending || 0,
         color: 'amber',
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 18v-1"/><path d="M14 18v-3"/><path d="M10 13V8l4 5"/></svg>',
     },
-]
+])
 </script>
 
 <style>

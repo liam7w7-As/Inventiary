@@ -141,6 +141,7 @@ Route::middleware(['auth', 'schedule'])->group(function () {
         // Credits (Admin & Encargado)
         Route::get('/credits', [CreditController::class, 'index'])->name('credits.index');
         Route::get('/credits/{id}', [CreditController::class, 'show'])->name('credits.show');
+        Route::get('/credits/{id}/installments', [CreditController::class, 'installments'])->name('credits.installments');
         Route::post('/credits/{id}/payment', [CreditController::class, 'addPayment'])->name('credits.addPayment');
 
         // Transfers (Admin & Encargado)

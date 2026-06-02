@@ -59,19 +59,24 @@ class PreSaleController extends Controller
         $isAdmin = $user->role->name === 'admin';
 
         $clientsQuery = Client::orderBy('name');
-        $productsQuery = Product::where('is_active', true)->with('category')->orderBy('name');
+        $productsQuery = Product::where('is_active', true)->with(['category', 'branchProducts'])->orderBy('name');
 
         if (!$isAdmin) {
             $clientsQuery->where('branch_id', $user->branch_id);
-            // For products, get those with stock in user's branch
-            $productsQuery->whereHas('branchProducts', function ($q) use ($user) {
-                $q->where('branch_id', $user->branch_id);
-            });
         }
+
+        $products = $productsQuery->get(['id', 'name', 'sale_price', 'product_type', 'units_per_box', 'category_id', 'has_inventory'])->map(function ($product) use ($user, $isAdmin) {
+            $product->stock_by_branch = $product->branchProducts->pluck('current_stock', 'branch_id');
+            $branchId = $isAdmin ? null : $user->branch_id;
+            if (!$branchId) return $product;
+            $branchProduct = $product->branchProducts->where('branch_id', $branchId)->first();
+            $product->current_stock = $branchProduct ? (float) $branchProduct->current_stock : 0;
+            return $product;
+        });
 
         return Inertia::render('PreSales/Create', [
             'clients'  => $clientsQuery->get(['id', 'name', 'phone']),
-            'products' => $productsQuery->get(['id', 'name', 'sale_price', 'product_type', 'units_per_box', 'category_id']),
+            'products' => $products,
             'branches' => $isAdmin ? Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']) : [],
         ]);
     }
@@ -85,6 +90,9 @@ class PreSaleController extends Controller
             'branch_id'           => 'required|exists:branches,id',
             'client_id'           => 'nullable|exists:clients,id',
             'notes'               => 'nullable|string|max:500',
+            'payment_type'        => 'required|in:cash,credit',
+            'credit_installments' => 'required_if:payment_type,credit|nullable|integer|min:1|max:36',
+            'credit_period_days'  => 'required_if:payment_type,credit|nullable|integer|min:7|max:730',
             'items'               => 'required|array|min:1',
             'items.*.product_id'  => 'required|exists:products,id',
             'items.*.quantity'    => 'required|numeric|min:0.01',
@@ -96,13 +104,34 @@ class PreSaleController extends Controller
             $validated['branch_id'] = $user->branch_id;
         }
 
-        DB::transaction(function () use ($validated, $user, $request) {
+        $creditService = app(\App\Services\CreditService::class);
+        $hasStock = $creditService->checkStockForPreSale($validated['items'], $validated['branch_id']);
+
+        $requiresApproval = true;
+        $status = 'pending';
+        $approvedBy = null;
+        $approvedAt = null;
+
+        if ($validated['payment_type'] === 'cash' && $hasStock) {
+            $requiresApproval = false;
+            $status = 'approved';
+            $approvedBy = null; // Auto-aprobada
+            $approvedAt = now();
+        }
+
+        DB::transaction(function () use ($validated, $user, $request, $requiresApproval, $status, $approvedBy, $approvedAt) {
             $preSale = PreSale::create([
-                'branch_id'    => $validated['branch_id'],
-                'client_id'    => $validated['client_id'],
-                'requested_by' => $user->id,
-                'status'       => 'pending',
-                'notes'        => $validated['notes'],
+                'branch_id'            => $validated['branch_id'],
+                'client_id'            => $validated['client_id'],
+                'requested_by'         => $user->id,
+                'status'               => $status,
+                'notes'                => $validated['notes'],
+                'payment_type'         => $validated['payment_type'],
+                'requires_approval'    => $requiresApproval,
+                'credit_installments'  => $validated['payment_type'] === 'credit' ? $validated['credit_installments'] : null,
+                'credit_period_days'   => $validated['payment_type'] === 'credit' ? $validated['credit_period_days'] : null,
+                'approved_by'          => $approvedBy,
+                'approved_at'          => $approvedAt,
             ]);
 
             foreach ($validated['items'] as $item) {
@@ -130,7 +159,11 @@ class PreSaleController extends Controller
             ]);
         });
 
-        return redirect('/pre-sales')->with('success', 'Preventa creada correctamente. Queda pendiente de aprobación.');
+        $msg = $status === 'approved' 
+            ? 'Preventa creada y auto-aprobada (hay stock disponible).'
+            : 'Preventa creada correctamente. Queda pendiente de aprobación.';
+
+        return redirect('/pre-sales')->with('success', $msg);
     }
 
     public function show($id)
@@ -149,7 +182,7 @@ class PreSaleController extends Controller
         ]);
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
         $preSale = PreSale::findOrFail($id);
 
@@ -157,11 +190,28 @@ class PreSaleController extends Controller
             return back()->with('error', 'Solo se pueden aprobar preventas pendientes.');
         }
 
-        $preSale->update([
-            'status'      => 'approved',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-        ]);
+        if ($preSale->payment_type === 'credit') {
+            $validated = $request->validate([
+                'approved_installments' => 'required|integer|min:1|max:36',
+                'approved_period_days'  => 'required|integer|min:7|max:730',
+                'credit_notes'          => 'nullable|string|max:500',
+            ]);
+
+            $preSale->update([
+                'status'                => 'approved',
+                'approved_by'           => Auth::id(),
+                'approved_at'           => now(),
+                'approved_installments' => $validated['approved_installments'],
+                'approved_period_days'  => $validated['approved_period_days'],
+                'credit_notes'          => $validated['credit_notes'],
+            ]);
+        } else {
+            $preSale->update([
+                'status'      => 'approved',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
+        }
 
         ActivityLog::create([
             'user_id'     => Auth::id(),

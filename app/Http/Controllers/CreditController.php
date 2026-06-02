@@ -16,9 +16,7 @@ class CreditController extends Controller
 {
     private function markOverdue()
     {
-        Credit::where('status', 'active')
-            ->whereDate('due_date', '<', today())
-            ->update(['status' => 'overdue']);
+        app(\App\Services\CreditService::class)->markOverdueInstallments();
     }
 
     public function index(Request $request)
@@ -111,39 +109,24 @@ class CreditController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($validated, $credit, $user, $request) {
-                CreditPayment::create([
-                    'credit_id' => $credit->id,
-                    'user_id' => $user->id,
-                    'amount' => $validated['amount'],
-                    'payment_date' => $validated['payment_date'],
-                    'notes' => $validated['notes'],
-                ]);
-
-                $credit->paid_amount += $validated['amount'];
-                $credit->balance -= $validated['amount'];
-
-                if ($credit->balance <= 0) {
-                    $credit->status = 'paid';
-                }
-
-                $credit->save();
-
-                ActivityLog::create([
-                    'user_id' => $user->id,
-                    'branch_id' => $user->branch_id,
-                    'action' => 'credit.payment_added',
-                    'model_type' => 'Credit',
-                    'model_id' => $credit->id,
-                    'description' => "Pago de Bs. {$validated['amount']} registrado al crédito #{$credit->id}",
-                    'ip_address' => $request->ip(),
-                ]);
-            });
-
-            return back()->with('success', 'Pago registrado correctamente.');
+            $creditService = app(\App\Services\CreditService::class);
+            $result = $creditService->applyPayment($credit, $validated['amount'], $user->id, $validated['notes']);
+            return back()->with('success', "Pago registrado correctamente. Cuotas afectadas: {$result['installments_updated']}");
         } catch (\Exception $e) {
             return back()->with('error', 'Error al registrar el pago: ' . $e->getMessage());
         }
+    }
+
+    public function installments($id)
+    {
+        $credit = Credit::findOrFail($id);
+
+        $user = Auth::user();
+        if ($user->role->name !== 'admin' && $credit->branch_id !== $user->branch_id) {
+            abort(403);
+        }
+
+        return response()->json($credit->installments()->orderBy('installment_number')->get());
     }
 
     public function updateDueDate(Request $request, $id)

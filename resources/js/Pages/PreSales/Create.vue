@@ -44,6 +44,48 @@
                                 </div>
                             </div>
 
+                            <div class="field-wrap">
+                                <label class="field-label">Tipo de Pago Solicitado</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" v-model="form.payment_type" value="cash" />
+                                        <span>Efectivo / Transferencia</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" v-model="form.payment_type" value="credit" />
+                                        <span>A Crédito</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div v-if="form.payment_type === 'credit'" class="credit-section">
+                                <h3 class="credit-section__title">Condiciones del crédito solicitadas</h3>
+                                
+                                <div class="credit-grid">
+                                    <div class="credit-field">
+                                        <AppInput type="number" label="Número de cuotas" v-model.number="form.credit_installments" :error="form.errors.credit_installments" min="1" max="36" required />
+                                        <div class="quick-options">
+                                            <button type="button" @click="form.credit_installments = 1">1</button>
+                                            <button type="button" @click="form.credit_installments = 3">3</button>
+                                            <button type="button" @click="form.credit_installments = 6">6</button>
+                                        </div>
+                                    </div>
+                                    <div class="credit-field">
+                                        <AppInput type="number" label="Plazo total (días)" v-model.number="form.credit_period_days" :error="form.errors.credit_period_days" min="7" required />
+                                        <div class="quick-options">
+                                            <button type="button" @click="form.credit_period_days = 30">30d</button>
+                                            <button type="button" @click="form.credit_period_days = 60">60d</button>
+                                            <button type="button" @click="form.credit_period_days = 90">90d</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="form.credit_installments && form.credit_period_days && grandTotal > 0" class="credit-summary">
+                                    Aprox. <strong>Bs. {{ (grandTotal / form.credit_installments).toFixed(2) }}</strong> por cuota 
+                                    cada <strong>{{ Math.round(form.credit_period_days / form.credit_installments) }}</strong> días.
+                                </div>
+                            </div>
+
                             <AppTextarea label="Notas" v-model="form.notes" :error="form.errors.notes" :rows="2" />
                         </div>
                     </div>
@@ -54,9 +96,9 @@
                             <h2 class="form-section__title">Productos</h2>
                         </div>
                         <div class="form-section__body">
-                            <div class="product-search">
-                                <input v-model="productSearch" type="text" class="search-input" placeholder="Buscar producto para agregar..." />
-                                <div v-if="filteredProducts.length && productSearch.length >= 2" class="search-dropdown">
+                            <div class="search-wrap">
+                                <input v-model="productSearch" type="text" class="search-input" placeholder="Buscar producto para agregar..." @focus="isFocused = true" @blur="onBlur" />
+                                <div v-if="filteredProducts.length && (productSearch.length > 0 || isFocused)" class="search-dropdown">
                                     <button v-for="p in filteredProducts" :key="p.id" type="button" class="search-item" @click="addProduct(p)">
                                         <span class="search-item__name">{{ p.name }}</span>
                                         <span class="search-item__phone">Bs. {{ parseFloat(p.sale_price).toFixed(2) }}</span>
@@ -112,9 +154,17 @@
                     </div>
                 </div>
 
-                <div class="info-alert">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                    <p>La preventa quedará pendiente hasta que el administrador la apruebe.</p>
+                <div v-if="form.payment_type === 'credit'" class="info-alert info-alert--warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    <p>⚠ Las preventas a crédito siempre requieren aprobación del administrador antes de poder realizar la venta.</p>
+                </div>
+                <div v-else-if="hasStockForAllItems" class="info-alert info-alert--success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <p>✓ Stock disponible. La preventa se aprobará automáticamente.</p>
+                </div>
+                <div v-else class="info-alert info-alert--warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    <p>⚠ Stock insuficiente. La preventa requerirá aprobación del administrador.</p>
                 </div>
 
                 <div class="form-actions">
@@ -159,6 +209,9 @@ const branchOptions = computed(() => props.branches.map(b => ({ value: b.id, lab
 const form = useForm({
     branch_id: isAdmin.value ? '' : page.props.auth.user.branch_id,
     client_id: '',
+    payment_type: 'cash',
+    credit_installments: 1,
+    credit_period_days: 30,
     notes: '',
     items: [],
 })
@@ -185,10 +238,12 @@ function removeClient() { selectedClient.value = null; form.client_id = '' }
 
 // Product search
 const productSearch = ref('')
+const isFocused = ref(false)
+function onBlur() { setTimeout(() => { isFocused.value = false }, 200) }
 const filteredProducts = computed(() => {
-    if (productSearch.value.length < 2) return []
     const search = productSearch.value.toLowerCase()
-    return props.products.filter(p => p.name.toLowerCase().includes(search) && !form.items.find(i => i.product_id === p.id)).slice(0, 10)
+    if (!search) return props.products.filter(p => !form.items.find(i => i.product_id === p.id)).slice(0, 15)
+    return props.products.filter(p => p.name.toLowerCase().includes(search) && !form.items.find(i => i.product_id === p.id)).slice(0, 15)
 })
 function addProduct(p) {
     form.items.push({ product_id: p.id, name: p.name, quantity: 1, sale_price: parseFloat(p.sale_price), discount: 0 })
@@ -200,6 +255,20 @@ function itemSubtotal(item) { return item.quantity * item.sale_price * (1 - (ite
 const totalSubtotal = computed(() => form.items.reduce((s, i) => s + i.quantity * i.sale_price, 0))
 const totalDiscount = computed(() => form.items.reduce((s, i) => s + i.quantity * i.sale_price * ((i.discount || 0) / 100), 0))
 const grandTotal = computed(() => totalSubtotal.value - totalDiscount.value)
+
+const hasStockForAllItems = computed(() => {
+    if (form.items.length === 0) return false;
+    for (const item of form.items) {
+        const product = props.products.find(p => p.id === item.product_id);
+        if (product && product.has_inventory) {
+            // we have product.current_stock passed from backend
+            if (item.quantity > product.current_stock) {
+                return false;
+            }
+        }
+    }
+    return true;
+})
 
 function submit() { form.post('/pre-sales') }
 
@@ -282,6 +351,22 @@ function submitQuickClient() {
 .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .form-stack { display: flex; flex-direction: column; gap: 1rem; }
 .field-error { font-size: 0.78rem; color: #ef4444; }
+
+.radio-group { display: flex; gap: 1rem; margin-top: 0.25rem; }
+.radio-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #334155; cursor: pointer; }
+.radio-label input { accent-color: #3b82f6; width: 16px; height: 16px; cursor: pointer; }
+
+.credit-section { margin-top: 0.5rem; padding: 1.25rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+.credit-section__title { font-size: 0.85rem; font-weight: 700; color: #475569; margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.02em; }
+.credit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.quick-options { display: flex; gap: 0.3rem; margin-top: 0.4rem; }
+.quick-options button { flex: 1; padding: 0.25rem; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; color: #64748b; cursor: pointer; transition: all 0.1s; }
+.quick-options button:hover { border-color: #3b82f6; color: #3b82f6; }
+.credit-summary { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem; color: #3b82f6; text-align: center; background: #eff6ff; border-radius: 6px; padding: 0.75rem; }
+
+.info-alert--warning { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+.info-alert--success { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
 
 @media (max-width: 768px) { .two-columns { grid-template-columns: 1fr; } }
 </style>

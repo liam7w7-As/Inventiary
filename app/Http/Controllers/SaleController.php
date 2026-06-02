@@ -143,6 +143,20 @@ class SaleController extends Controller
         $user = Auth::user();
         $isAdmin = $user->role->name === 'admin';
 
+        $preSale = null;
+        if ($request->filled('pre_sale_id')) {
+            $preSale = \App\Models\PreSale::find($request->pre_sale_id);
+            if ($preSale && $preSale->payment_type === 'credit') {
+                $request->merge(['payment_type' => 'credit']);
+            }
+        }
+
+        if (!$request->filled('pre_sale_id') || ($preSale && $preSale->payment_type !== 'credit')) {
+            if ($request->payment_type === 'credit') {
+                return back()->withErrors(['payment_type' => 'No se puede realizar una venta a crédito sin una preventa aprobada.']);
+            }
+        }
+
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'cash_register_id' => 'required|exists:cash_registers,id',
@@ -247,17 +261,9 @@ class SaleController extends Controller
                 }
 
                 // 7. Si crédito
-                if ($validated['payment_type'] === 'credit') {
-                    Credit::create([
-                        'sale_id' => $sale->id,
-                        'client_id' => $validated['client_id'],
-                        'branch_id' => $validated['branch_id'],
-                        'total_amount' => $total,
-                        'paid_amount' => 0,
-                        'balance' => $total,
-                        'due_date' => now()->addDays(30),
-                        'status' => 'active',
-                    ]);
+                if ($validated['payment_type'] === 'credit' && isset($preSale)) {
+                    $creditService = app(\App\Services\CreditService::class);
+                    $creditService->createFromSale($sale, $preSale);
                 }
 
                 // 8. Actualizar preventa
